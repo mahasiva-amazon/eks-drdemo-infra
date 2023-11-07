@@ -1,0 +1,557 @@
+variable "vpc_data" {
+    type = object({
+        name = string
+        tags = list(object({
+           name = string
+           values = set(string)
+        }))
+    })
+}
+
+variable "cluster_data" {
+    type = object({
+        name = string
+        version = string
+        cluster_roles = list(object({
+            rolearn = string
+            username = string
+            groups = list(string)
+        }))
+        cluster_users = list(object({
+            userarn = string
+            username = string
+            groups = list(string)
+        }))
+    })
+}
+
+variable "managed_ngs" {
+    description = "Map of maps of `eks_node_groups` to create"
+    type = map(any)
+    default = {}
+}
+
+provider "aws" {
+}
+
+provider "kubernetes" {
+    host                   = module.drworkshop_cluster[0].cluster_endpoint
+    cluster_ca_certificate = base64decode(module.drworkshop_cluster[0].cluster_certificate_authority_data)
+    token                  = try(data.aws_eks_cluster_auth.this.token,"")
+}
+
+provider "helm" {
+    kubernetes {
+        host                   = module.drworkshop_cluster[0].cluster_endpoint
+        cluster_ca_certificate = base64decode(module.drworkshop_cluster[0].cluster_certificate_authority_data)
+        token                  = try(data.aws_eks_cluster_auth.this.token,"")
+    }
+}
+
+data "aws_eks_cluster_auth" "this" {
+    name = module.drworkshop_cluster[0].cluster_name
+}
+
+
+data "aws_availability_zones" "available" {
+    state = "available"
+}
+
+data "aws_vpcs" "cluster_vpc" {
+    
+    filter {
+        name = "tag:Name"
+        values = [var.vpc_data.name]
+    }
+
+    dynamic "filter" {
+        for_each = var.vpc_data.tags
+        content {
+            name = filter.value["name"]
+            values = filter.value["values"]
+        }
+    }
+}
+
+data "aws_vpc" "cluster_vpc_selected" {
+  id = data.aws_vpcs.cluster_vpc.ids[0]
+}
+
+data "aws_subnets" "cluster_private_subnets" {
+    for_each = toset(data.aws_availability_zones.available.zone_ids)
+
+    filter {
+        name   = "vpc-id"
+        values = [data.aws_vpcs.cluster_vpc.ids[0]]
+    }
+
+    dynamic "filter" {
+        for_each = var.vpc_data.tags
+        content {
+            name = filter.value["name"]
+            values = filter.value["values"]
+        }
+    } 
+  
+    filter {
+        name = "tag:kubernetes.io/role/internal-elb"
+        values = ["1"]
+    }
+
+    filter {
+        name = "availability-zone-id"
+        values = ["${each.value}"]
+    }
+}
+
+data "aws_subnets" "cluster_public_subnets" {
+    for_each = toset(data.aws_availability_zones.available.zone_ids)
+
+    filter {
+        name   = "vpc-id"
+        values = [data.aws_vpcs.cluster_vpc.ids[0]]
+    }
+
+    dynamic "filter" {
+        for_each = var.vpc_data.tags
+        content {
+            name = filter.value["name"]
+            values = filter.value["values"]
+        }
+    } 
+  
+    filter {
+        name = "tag:kubernetes.io/role/elb"
+        values = ["1"]
+    }
+
+    filter {
+        name = "availability-zone-id"
+        values = ["${each.value}"]
+    }
+}
+
+data "aws_region" "current_region" {}
+
+data "aws_ssm_parameter" "dr_policy_data" {
+  name = join("-", ["eks", var.cluster_data.name ,"dr_data"])
+}
+
+locals {
+
+    ARBITARY_LARGE_NG_SIZE = 10000
+    DEFAULT_DESIRED_NG_SIZE = 1
+
+    dr_policy_data = jsondecode(data.aws_ssm_parameter.dr_policy_data.value)
+    
+    node_size_defaults = lookup(local.dr_policy_data,"node_size_defaults")
+    #{
+    #    "backup-restore" = 0
+    #    "pilot-light" = 0
+    #    "warm-standby" = 2
+    #}
+
+    private_subnet_ids = flatten([for k, v in data.aws_subnets.cluster_private_subnets : v.ids])
+
+    public_subnet_ids = flatten([for k, v in data.aws_subnets.cluster_public_subnets : v.ids])
+
+    is_dr_region = data.aws_region.current_region.name != local.dr_policy_data.live_region ? true : false
+
+    is_backup_restore_strategy = local.dr_policy_data.dr_strategy == "backup-restore" ? true : false
+
+    is_active_active_strategy = local.dr_policy_data.dr_strategy == "active-active" ? true : false
+
+    desired_nodes = flatten([
+        for name, mng in var.managed_ngs:
+            { desired_size = local.is_dr_region ? min(lookup(local.node_size_defaults,local.dr_policy_data.dr_strategy,try(mng.desired_size,local.ARBITARY_LARGE_NG_SIZE))) : try(mng.desired_size,local.DEFAULT_DESIRED_NG_SIZE) }
+    ])
+
+    eks_managed_ngs = {
+        for name, mng in var.managed_ngs: 
+            name => merge(mng, { node_group_name = name ,subnet_ids = local.private_subnet_ids, desired_size = local.is_dr_region ? min(lookup(local.node_size_defaults,local.dr_policy_data.dr_strategy,try(mng.desired_size,local.ARBITARY_LARGE_NG_SIZE))) : try(mng.desired_size,local.DEFAULT_DESIRED_NG_SIZE) })
+    }
+}
+
+module "drworkshop_cluster" {
+   #source = "github.com/aws-ia/terraform-aws-eks-blueprints"
+    source  = "terraform-aws-modules/eks/aws"
+    version = "~> 19.17.2"
+    
+    count = local.is_dr_region && local.is_backup_restore_strategy ? 0 : 1
+    
+    # EKS CLUSTER
+    cluster_name    = var.cluster_data.name
+    cluster_version    = var.cluster_data.version                                   
+    vpc_id             = data.aws_vpcs.cluster_vpc.ids[0]
+    subnet_ids = local.private_subnet_ids
+    cluster_endpoint_public_access = true
+    cluster_encryption_config = {}
+    manage_aws_auth_configmap = true
+    aws_auth_roles = var.cluster_data.cluster_roles
+
+    # List of map_users
+    aws_auth_users = var.cluster_data.cluster_users
+
+    eks_managed_node_groups = local.eks_managed_ngs
+}
+
+module "drworkshop_cluster_kubernetes_addons" {
+    source = "aws-ia/eks-blueprints-addons/aws"
+    
+    cluster_name      = module.drworkshop_cluster[0].cluster_name
+    cluster_endpoint  = module.drworkshop_cluster[0].cluster_endpoint
+    cluster_version   = module.drworkshop_cluster[0].cluster_version
+    oidc_provider_arn = module.drworkshop_cluster[0].oidc_provider_arn
+
+    enable_cluster_autoscaler = true
+    enable_aws_cloudwatch_metrics = true
+    enable_metrics_server = true
+    enable_aws_load_balancer_controller = true
+    enable_argocd = true
+    enable_argo_workflows = true
+    enable_argo_events = true
+    enable_aws_for_fluentbit = true
+    enable_external_dns = true
+
+}
+
+resource "aws_security_group" "argoworkflow_webhooks_frontend_sg" {
+  name        = "allow_tls"
+  description = "Allow TLS inbound traffic"
+  vpc_id      = data.aws_vpcs.cluster_vpc.ids[0]
+
+  ingress {
+    description      = "TLS from VPC"
+    from_port        = 443
+    to_port          = 443
+    protocol         = "tcp"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+  }
+
+  ingress {
+    description      = "Non TLS from VPC"
+    from_port        = 80
+    to_port          = 80
+    protocol         = "tcp"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+  }
+
+  egress {
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+  }
+
+  tags = {
+    Name = "allow_tls"
+  }
+}
+
+
+resource "aws_lb" "argoworkflow_webhooks_frontend" {
+  name               = "argoworkflow-webhooks-frontend"
+  internal           = false
+  load_balancer_type = "application"
+  subnets = local.public_subnet_ids
+  security_groups = [aws_security_group.argoworkflow_webhooks_frontend_sg.id]
+  tags = {
+    owner = "argoworkflow"
+  }
+}
+
+resource "aws_lb_target_group" "argoworkflow_webhooks_frontend_tg" {
+  name     = "argoworkflow-webhooks-sns"
+  port     = 12000
+  protocol = "HTTP"
+  target_type = "ip"
+  vpc_id   = data.aws_vpcs.cluster_vpc.ids[0]
+  health_check {
+    path = "/health"
+    matcher = "200-299"
+  }
+}
+
+resource "aws_lb_target_group" "argoworkflow_webhooks_frontend_tg_github" {
+  name     = "argoworkflow-webhooks-github"
+  port     = 13000
+  protocol = "HTTP"
+  target_type = "ip"
+  vpc_id   = data.aws_vpcs.cluster_vpc.ids[0]
+  health_check {
+    path = "/health"
+    matcher = "200-299"
+  }
+}
+
+resource "aws_lb_listener" "argoworkflow_webhooks_frontend_listener" {
+  load_balancer_arn = aws_lb.argoworkflow_webhooks_frontend.arn
+  port = "80"
+  protocol = "HTTP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.argoworkflow_webhooks_frontend_tg.arn
+  }
+}
+
+resource "aws_lb_listener_rule" "sns" {
+  listener_arn = aws_lb_listener.argoworkflow_webhooks_frontend_listener.arn
+  priority = 10
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.argoworkflow_webhooks_frontend_tg.arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/ssm-parameters-notifications"]
+    }
+  }
+}
+
+resource "aws_lb_listener_rule" "github" {
+  listener_arn = aws_lb_listener.argoworkflow_webhooks_frontend_listener.arn
+  priority     = 15
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.argoworkflow_webhooks_frontend_tg_github.arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/push"]
+    }
+  }
+}
+
+resource "aws_cloudwatch_log_group" "lambda_log_group" {
+  name = "/aws/lambda/${aws_lambda_function.argocd_workflow_sns_subscriber.function_name}"
+  retention_in_days = 30
+}
+
+resource "aws_iam_role" "lambdarole" {
+  name               = "lambda.basic.allow"
+  assume_role_policy = <<-EOF
+    {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Effect": "Allow",
+          "Action": "sts:AssumeRole",
+          "Principal": {
+            "Service": "lambda.amazonaws.com"
+          }
+        }
+      ]
+    }
+  EOF
+}
+
+resource "aws_iam_role_policy" "lambdaroleperm" {
+  name   = "Cloudwatch-Logs"
+  role   = aws_iam_role.lambdarole.name
+  policy = <<-EOF
+    {
+      "Statement": [
+        {
+          "Action": [
+            "logs:CreateLogGroup",
+            "logs:CreateLogStream",
+            "logs:PutLogEvents"
+          ],
+          "Effect": "Allow",
+          "Resource": "arn:aws:logs:*:*:*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "ec2:CreateNetworkInterface",
+                "ec2:DescribeNetworkInterfaces",
+                "ec2:DeleteNetworkInterface"
+            ],
+            "Resource": "*"
+        }
+      ]
+    }
+  EOF
+}
+
+resource "aws_security_group" "lamba_sg" {
+  name        = "lamba_sg"
+  description = "Generic SG to allow downstream system to secure the calls"
+  vpc_id      = data.aws_vpcs.cluster_vpc.ids[0]
+
+  ingress {
+    description      = "TLS from VPC"
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = [data.aws_vpc.cluster_vpc_selected.cidr_block]
+  }
+
+  egress {
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+  }
+}
+
+data "archive_file" "sns_http_invoker" {
+  type        = "zip"
+  output_path = "/tmp/sns_http_invoker.zip"
+  source {
+    content  = <<EOF
+const http = require('http');
+module.exports.handler = function (event, context, callback) {
+  console.log(JSON.stringify(event))
+  var postData = event["Records"][0]["Sns"]["Message"];
+  postData = JSON.parse(postData)["detail"]
+  postData = JSON.stringify(postData)
+  console.log([postData])
+  var options = {
+  hostname: process.env.HTTP_ENDPOINT,
+  port: 80,
+  path: '/ssm-parameters-notifications',
+  method: 'POST',
+  headers: {
+       'Content-Type': 'application/json',
+       'Content-Length': postData.length
+     }
+
+  };
+  var req = http.request(options, (res) => {
+    console.log('statusCode:', res.statusCode);
+    console.log('headers:', res.headers);
+
+    res.on('data', (d) => {
+      callback(null,res.statusCode);
+    });
+  });
+  req.write(postData);
+  req.end();
+}
+  EOF
+    filename = "index.js"
+  }
+}
+
+resource "aws_lambda_function" "argocd_workflow_sns_subscriber" {
+  function_name    = "argocd_workflow_sns_subscriber"
+  filename         = "${data.archive_file.sns_http_invoker.output_path}"
+  source_code_hash = "${data.archive_file.sns_http_invoker.output_base64sha256}"
+  runtime = "nodejs18.x"
+  handler = "index.handler"
+  role = aws_iam_role.lambdarole.arn
+  vpc_config {
+    security_group_ids = [aws_security_group.lamba_sg.id]
+    subnet_ids = local.private_subnet_ids
+  }
+  environment {
+    variables = {
+      HTTP_ENDPOINT = "${aws_lb.argoworkflow_webhooks_frontend.dns_name}"
+    }
+  }
+}
+
+resource "aws_ssm_parameter" "dr_switch_config" {
+  name  = "dr_switch_config"
+  type  = "String"
+  value = "{}"
+}
+
+resource "aws_sns_topic" "ssm-parameter-trigger" {
+  name = "ssm-parameter-trigger"
+}
+
+resource "aws_lambda_permission" "allow_sns_trigger" {
+  statement_id  = "AllowExecutionFromSNS"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.argocd_workflow_sns_subscriber.function_name
+  principal     = "sns.amazonaws.com"
+  source_arn    = aws_sns_topic.ssm-parameter-trigger.arn
+
+  lifecycle {
+    replace_triggered_by = [
+      aws_lambda_function.argocd_workflow_sns_subscriber
+    ]
+  }
+}
+
+resource "aws_sns_topic_subscription" "lambda_subscriber" {
+  topic_arn = aws_sns_topic.ssm-parameter-trigger.arn
+  protocol  = "lambda"
+  endpoint  = aws_lambda_function.argocd_workflow_sns_subscriber.arn
+}
+
+
+resource "aws_sns_topic_policy" "default" {
+  arn = aws_sns_topic.ssm-parameter-trigger.arn
+
+  policy = data.aws_iam_policy_document.sns_topic_policy.json
+}
+
+data "aws_iam_policy_document" "sns_topic_policy" {
+  policy_id = "__default_policy_ID"
+
+  statement {
+    actions = [
+      "sns:Publish",
+    ]
+
+    effect = "Allow"
+
+    principals {
+      type        = "Service"
+      identifiers = ["events.amazonaws.com"]
+    }
+
+    resources = [
+      "${aws_sns_topic.ssm-parameter-trigger.arn}"
+    ]
+
+    sid = "__default_statement_ID"
+  }
+}
+
+resource "aws_cloudwatch_event_rule" "ssm-parameter-watch" {
+  name        = "ssm-parameter-watch"
+  description = "Watch for updates to ssm parameter"
+
+  event_pattern = <<EOF
+{
+    "source": [
+        "aws.ssm"
+    ],
+    "detail-type": [
+        "Parameter Store Change"
+    ],
+    "detail": {
+        "name": [
+           "dr_switch_config"
+        ],
+        "operation": [
+            "Update"
+        ]
+    }
+}
+EOF
+}
+
+resource "aws_cloudwatch_event_target" "ssm-parameter-watch-target" {
+  rule      = aws_cloudwatch_event_rule.ssm-parameter-watch.name
+  target_id = "SendToSNS"
+  arn       = aws_sns_topic.ssm-parameter-trigger.arn
+}
+
+
+#output "debug_info" {
+#    value = "isDR:${local.is_dr_region}|LR:${local.dr_policy_data.live_region}|DR:${data.aws_region.current_region.name}"
+#    sensitive = true
+#}

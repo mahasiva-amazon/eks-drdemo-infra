@@ -1,0 +1,31 @@
+apiVersion: argoproj.io/v1alpha1
+kind: EventSource
+metadata:
+  name: github
+  namespace: argo-events
+spec:
+  service:
+    ports:
+      - name: app-deployments
+        port: 13000
+        targetPort: 13000
+  github:
+    app-deployments:
+      repositories:
+        - owner: mahasiva-amazon
+          names:
+            - eks-drdemo-apps
+      webhook:
+        endpoint: /push
+        port: "13000"
+        method: POST
+        url: http://{{.Values.events.github_alb_dnsname}}/
+      events:
+        - "push"
+        - "pull_request"
+      apiToken:
+        name: github-access
+        key: token
+      insecure: true
+      active: true
+      contentType: json

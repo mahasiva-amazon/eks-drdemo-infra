@@ -1,0 +1,10 @@
+apiVersion: elbv2.k8s.aws/v1beta1
+kind: TargetGroupBinding
+metadata:
+  name: argoworkflow-github-eventsource-lbtargets
+  namespace: argo-events
+spec:
+  serviceRef:
+    name: github-eventsource-svc
+    port: 13000
+  targetGroupARN: {{.Values.events.github_tg_arn}}
