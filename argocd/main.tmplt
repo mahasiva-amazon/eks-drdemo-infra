@@ -26,11 +26,11 @@ provider "helm" {
 }
 
 data "aws_lb_target_group" "argoworkflow_webhooks_frontend" {
-  name = "argoworkflow-webhooks-sns"
+  name = join("-", [var.eks_cluster_name,"agwf-gh"])
 }
 
 data "aws_lb_target_group" "argoworkflow_webhooks_frontend_tg_github" {
-  name = "argoworkflow-webhooks-github"
+  name = join("-", [var.eks_cluster_name,"agwf-sns"])
 }
 
 data "aws_eks_cluster" "this" {
