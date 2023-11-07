@@ -558,6 +558,6 @@ resource "aws_cloudwatch_event_target" "ssm-parameter-watch-target" {
   arn       = aws_sns_topic.ssm-parameter-trigger.arn
 }
 
-output "debug_info_2" {
-    value = local.eks_managed_ngs.servers.desired_size
-}
+#output "debug_info_2" {
+#    value = local.eks_managed_ngs.servers.desired_size
+#}
