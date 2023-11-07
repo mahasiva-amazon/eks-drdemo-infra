@@ -2,7 +2,7 @@ terraform {
   backend "s3" {
     bucket = "mahali-${CLUSTER_NAME}-tfstate-${AWS_REGION}"
     key    = "terraform-argocdsetup.tfstate"
-    region = "us-west-2"
+    region = "${AWS_REGION}"
   }
 }
 
