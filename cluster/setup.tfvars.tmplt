@@ -13,7 +13,13 @@ cluster_data = {
             groups = ["system:masters"]
         }
     ]
-    cluster_users = []
+    cluster_users = [
+	{
+            userarn = "arn:aws:iam::${ACCOUNT_ID}:user/dr_tester"
+            username = "admin_operators"
+            groups = ["system:masters"]
+        }
+    ]
 }
 
 managed_ngs = {

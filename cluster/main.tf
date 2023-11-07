@@ -555,3 +555,7 @@ resource "aws_cloudwatch_event_target" "ssm-parameter-watch-target" {
 #    value = "isDR:${local.is_dr_region}|LR:${local.dr_policy_data.live_region}|DR:${data.aws_region.current_region.name}"
 #    sensitive = true
 #}
+
+output "debug_info_2" {
+    value = local.eks_managed_ngs.servers.desired_size
+}
