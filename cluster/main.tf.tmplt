@@ -343,7 +343,7 @@ resource "aws_cloudwatch_log_group" "lambda_log_group" {
 }
 
 resource "aws_iam_role" "lambdarole" {
-  name               = join("_", [var.cluster_data.name,"lambda.basic.allow",${AWS_REGION}])
+  name               = join("_", [var.cluster_data.name,"lambda.basic.allow","${AWS_REGION}"])
   assume_role_policy = <<-EOF
     {
       "Version": "2012-10-17",
