@@ -1,3 +1,16 @@
+terraform {
+  backend "s3" {
+    bucket = "mahali-${CLUSTER_NAME}-tfstate"
+    key    = "terraform-argocdsetup.tfstate"
+    region = "us-west-2"
+  }
+}
+
+variable "eks_cluster_name" {
+  type = string
+  default = "${CLUSTER_NAME}"
+}
+
 provider "kubernetes" {
   host                   = data.aws_eks_cluster.this.endpoint
   cluster_ca_certificate = base64decode(data.aws_eks_cluster.this.certificate_authority[0].data)
@@ -21,15 +34,15 @@ data "aws_lb_target_group" "argoworkflow_webhooks_frontend_tg_github" {
 }
 
 data "aws_eks_cluster" "this" {
-  name = "drworkshop"
+  name = var.eks_cluster_name
 }
 
 data "aws_eks_cluster_auth" "this" {
-    name = "drworkshop"
+    name = var.eks_cluster_name
 }
 
 data "aws_lb" "webhook_alb" {
-  name = "argoworkflow-webhooks-frontend"
+  name = join("-", [var.eks_cluster_name,"agwf-frontend"])
 }
 
 resource "helm_release" "argoworkflow-event-bus" {
