@@ -1,6 +1,6 @@
 terraform {
   backend "s3" {
-    bucket = "mahali-${CLUSTER_NAME}-tfstate"
+    bucket = "mahali-${CLUSTER_NAME}-tfstate-${AWS_REGION}"
     key    = "terraform-argocdsetup.tfstate"
     region = "us-west-2"
   }
@@ -26,11 +26,11 @@ provider "helm" {
 }
 
 data "aws_lb_target_group" "argoworkflow_webhooks_frontend" {
-  name = join("-", [var.eks_cluster_name,"agwf-gh"])
+  name = join("-", [var.eks_cluster_name,"agwf-sns"])
 }
 
 data "aws_lb_target_group" "argoworkflow_webhooks_frontend_tg_github" {
-  name = join("-", [var.eks_cluster_name,"agwf-sns"])
+  name = join("-", [var.eks_cluster_name,"agwf-gh"])
 }
 
 data "aws_eks_cluster" "this" {
