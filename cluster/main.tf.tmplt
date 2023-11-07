@@ -31,6 +31,14 @@ variable "managed_ngs" {
     default = {}
 }
 
+terraform {
+  backend "s3" {
+    bucket = "mahali-${CLUSTER_NAME}-tfstate"
+    key    = "terraform.tfstate"
+    region = "us-west-2"
+  }
+}
+
 provider "aws" {
 }
 
@@ -216,7 +224,7 @@ module "drworkshop_cluster_kubernetes_addons" {
 }
 
 resource "aws_security_group" "argoworkflow_webhooks_frontend_sg" {
-  name        = "allow_tls"
+  name        = join("_", [var.cluster_data.name, "allow_tls"])
   description = "Allow TLS inbound traffic"
   vpc_id      = data.aws_vpcs.cluster_vpc.ids[0]
 
@@ -253,7 +261,7 @@ resource "aws_security_group" "argoworkflow_webhooks_frontend_sg" {
 
 
 resource "aws_lb" "argoworkflow_webhooks_frontend" {
-  name               = "argoworkflow-webhooks-frontend"
+  name               = join("-", [var.cluster_data.name,"agwf-frontend"])
   internal           = false
   load_balancer_type = "application"
   subnets = local.public_subnet_ids
@@ -264,7 +272,7 @@ resource "aws_lb" "argoworkflow_webhooks_frontend" {
 }
 
 resource "aws_lb_target_group" "argoworkflow_webhooks_frontend_tg" {
-  name     = "argoworkflow-webhooks-sns"
+  name     = join("-", [var.cluster_data.name,"agwf-sns"])
   port     = 12000
   protocol = "HTTP"
   target_type = "ip"
@@ -276,7 +284,7 @@ resource "aws_lb_target_group" "argoworkflow_webhooks_frontend_tg" {
 }
 
 resource "aws_lb_target_group" "argoworkflow_webhooks_frontend_tg_github" {
-  name     = "argoworkflow-webhooks-github"
+  name     = join("-", [var.cluster_data.name,"agwf-gh"])
   port     = 13000
   protocol = "HTTP"
   target_type = "ip"
@@ -335,7 +343,7 @@ resource "aws_cloudwatch_log_group" "lambda_log_group" {
 }
 
 resource "aws_iam_role" "lambdarole" {
-  name               = "lambda.basic.allow"
+  name               = join("_", [var.cluster_data.name,"lambda.basic.allow"])
   assume_role_policy = <<-EOF
     {
       "Version": "2012-10-17",
@@ -382,7 +390,7 @@ resource "aws_iam_role_policy" "lambdaroleperm" {
 }
 
 resource "aws_security_group" "lamba_sg" {
-  name        = "lamba_sg"
+  name        = join("_", [var.cluster_data.name,"lamba_sg"])
   description = "Generic SG to allow downstream system to secure the calls"
   vpc_id      = data.aws_vpcs.cluster_vpc.ids[0]
 
@@ -443,7 +451,7 @@ module.exports.handler = function (event, context, callback) {
 }
 
 resource "aws_lambda_function" "argocd_workflow_sns_subscriber" {
-  function_name    = "argocd_workflow_sns_subscriber"
+  function_name    = join("_", [var.cluster_data.name,"argo_wflw_sns_handler"])
   filename         = "${data.archive_file.sns_http_invoker.output_path}"
   source_code_hash = "${data.archive_file.sns_http_invoker.output_base64sha256}"
   runtime = "nodejs18.x"
@@ -461,7 +469,7 @@ resource "aws_lambda_function" "argocd_workflow_sns_subscriber" {
 }
 
 resource "aws_ssm_parameter" "dr_switch_config" {
-  name  = "dr_switch_config"
+  name  = join("_", [var.cluster_data.name,"dr_switch_config"])
   type  = "String"
   value = "{}"
 }
@@ -521,7 +529,7 @@ data "aws_iam_policy_document" "sns_topic_policy" {
 }
 
 resource "aws_cloudwatch_event_rule" "ssm-parameter-watch" {
-  name        = "ssm-parameter-watch"
+  name        = join("-", [var.cluster_data.name,"ssm-parameter-watch"])
   description = "Watch for updates to ssm parameter"
 
   event_pattern = <<EOF
@@ -534,7 +542,7 @@ resource "aws_cloudwatch_event_rule" "ssm-parameter-watch" {
     ],
     "detail": {
         "name": [
-           "dr_switch_config"
+           "${var.cluster_data.name}_dr_switch_config"
         ],
         "operation": [
             "Update"
@@ -549,12 +557,6 @@ resource "aws_cloudwatch_event_target" "ssm-parameter-watch-target" {
   target_id = "SendToSNS"
   arn       = aws_sns_topic.ssm-parameter-trigger.arn
 }
-
-
-#output "debug_info" {
-#    value = "isDR:${local.is_dr_region}|LR:${local.dr_policy_data.live_region}|DR:${data.aws_region.current_region.name}"
-#    sensitive = true
-#}
 
 output "debug_info_2" {
     value = local.eks_managed_ngs.servers.desired_size
