@@ -475,7 +475,7 @@ resource "aws_ssm_parameter" "dr_switch_config" {
 }
 
 resource "aws_sns_topic" "ssm-parameter-trigger" {
-  name = "ssm-parameter-trigger"
+  name = join("-", [var.cluster_data.name,"ssm-trig"])
 }
 
 resource "aws_lambda_permission" "allow_sns_trigger" {

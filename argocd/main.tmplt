@@ -71,7 +71,7 @@ resource "helm_release" "argoworkflow-eventsources" {
 }
 
 resource "helm_release" "argoworkflow-eventsensors" {
-  name = "argoworkflow-sns-eventsensors"
+  name = "argoworkflow-eventsensors"
   namespace  = "argo-events"
   chart = "./helm/eventsensors" 
 }
