@@ -96,8 +96,8 @@ spec:
                             #run init
                             source /usr/local/bin/deploy-scripts/init.sh
 
-                            echo $dr_signal
-                            if [ $dr_signal = "true" ] 
+                            echo "$dr_signal"
+                            if [ "${dr_signal}" = "true" ] 
                             then
                               echo "Running DR mode"
                             else
@@ -166,6 +166,8 @@ spec:
                         value: "{{`{{inputs.parameters.repoName}}`}}"
                       - name: PullRequestNumber
                         value: "{{`{{inputs.parameters.pr-number}}`}}"
+                      - name: dr_signal
+                        value: "{{`{{inputs.parameters.dr_signal}}`}}"
           parameters:
             - src:
                 dependencyName: github-dep 
