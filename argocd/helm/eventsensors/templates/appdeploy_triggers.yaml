@@ -125,7 +125,7 @@ spec:
                               echo "App to be patched" $eachfile
                               HELM_FILE=$(argocd app get $eachfile --server $SERVER --auth-token $AUTH_TOKEN --insecure  -o json | jq -r '.spec.source.helm.valueFiles[0]')
                               echo $HELM_FILE
-                              HELM_FILE=$(echo $HELM_FILE | sed "s/_live/_dr/g")
+                              HELM_FILE=$(echo $HELM_FILE | sed "s/_dr/_live/g")
                               echo $HELM_FILE
                               argocd app set $eachfile --values $HELM_FILE
                               argocd app sync $eachfile --server $SERVER --auth-token $AUTH_TOKEN --insecure
