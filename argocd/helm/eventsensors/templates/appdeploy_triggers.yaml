@@ -122,15 +122,12 @@ spec:
                             APPS=$(argocd app list  --server $SERVER --auth-token $AUTH_TOKEN --insecure -o json)
                             for eachfile in $APPS
                             do
-                              if [ "$IS_DRENV" = '"true"' ]
-                              then
-                                export HELM_VALUE_FILE=$(find ../$APP_PATH -name "*_live.yaml" | cut -d "/" -f 4)
-                              else
-                                export HELM_VALUE_FILE=$(find ../$APP_PATH -name "*_dr.yaml" | cut -d "/" -f 4)
-                              fi
-                              echo $HELM_VALUE_FILE
                               echo "App to be patched" $eachfile
-                              argocd app set $eachfile --values ./$HELM_VALUE_FILE
+                              HELM_FILE=$(argocd app get $eachfile --server $SERVER --auth-token $AUTH_TOKEN --insecure  -o json | jq -r '.spec.source.helm.valueFiles[0]')
+                              echo $HELM_FILE
+                              HELM_FILE=$(echo $HELM_FILE | sed "s/_live/_dr/g")
+                              echo $HELM_FILE
+                              argocd app set $eachfile --values $HELM_FILE
                               argocd app sync $eachfile --server $SERVER --auth-token $AUTH_TOKEN --insecure
                             done  
                       - name: deploy-script-live
