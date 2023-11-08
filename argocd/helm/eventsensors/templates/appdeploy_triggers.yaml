@@ -78,7 +78,7 @@ spec:
                             chmod +x /usr/local/bin/argocd
                             curl -sSL -o /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
                             chmod +x /usr/local/bin/yq
-                            export AUTH_TOKEN=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJhcmdvY2QiLCJzdWIiOiJhcmdvd29ya2Zsb3c6YXBpS2V5IiwibmJmIjoxNjk5Mzk1NjMwLCJpYXQiOjE2OTkzOTU2MzAsImp0aSI6IjUzMjBlYTY4LTgwMGUtNDBlYy1hZjdlLTA1NDU2NDM5NTFjNCJ9.beXp_3ORlsZslgpWIahNig1YpAkFOBcr0pwYo44vxRw
+                            export AUTH_TOKEN=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJhcmdvY2QiLCJzdWIiOiJhcmdvd29ya2Zsb3c6YXBpS2V5IiwibmJmIjoxNjk5NDA4NDk2LCJpYXQiOjE2OTk0MDg0OTYsImp0aSI6IjMwMDk3NzVkLTBkOTUtNGYyNS1iODQ3LTY4YWZiODg4ZjI0NiJ9.2HxkrPWtEKI0Ql6sR6Z6Dv1Iixdl1ArUgD32OfLZ5cI
                             export SERVER=argo-cd-argocd-server.argocd.svc.cluster.local
                             echo "Server Url -  $SERVER"
                             echo "Auth Token - $AUTH_TOKEN"
