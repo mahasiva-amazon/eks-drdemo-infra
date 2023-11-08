@@ -127,7 +127,7 @@ spec:
                               echo $HELM_FILE
                               HELM_FILE=$(echo $HELM_FILE | sed "s/_dr/_live/g")
                               echo $HELM_FILE
-                              argocd app set $eachfile --values $HELM_FILE
+                              argocd app set $eachfile --values $HELM_FILE --server $SERVER --auth-token $AUTH_TOKEN --insecure
                               argocd app sync $eachfile --server $SERVER --auth-token $AUTH_TOKEN --insecure
                             done  
                       - name: deploy-script-live
