@@ -88,8 +88,8 @@ spec:
                             export AUTH_TOKEN=___AUTH_TOKEN___
                             export SERVER=argo-cd-argocd-server.argocd.svc.cluster.local
                             export DEPLOY_API_ENDPOINT=___DEPLOY_API_ENDPOINT___
-                            echo $DEPLOY_API_ENDPOINT/deployAPIs
-                            export IS_DRENV=$(curl DEPLOY_API_ENDPOINT/deployAPIs -H 'Content-Type: application/json' -d '{"clusterName": "drworkshop3","apiType": "isDREnv"}')
+                            echo "http://${DEPLOY_API_ENDPOINT}/deployAPIs"
+                            export IS_DRENV=$(curl "http://${DEPLOY_API_ENDPOINT}/deployAPIs" -H 'Content-Type: application/json' -d '{"clusterName": "drworkshop3","apiType": "isDREnv"}')
                             echo "Server Url -  $SERVER"
                             echo "Auth Token - $AUTH_TOKEN"
                             argocd app list --server $SERVER --auth-token $AUTH_TOKEN --insecure
