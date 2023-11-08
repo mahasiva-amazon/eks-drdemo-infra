@@ -100,7 +100,7 @@ spec:
                             for eachfile in $APP_FILES
                             do 
                               echo $eachfile
-                              export APP_PATH=$(yq '.spec.source.path' app_1.yaml)
+                              export APP_PATH=$(yq '.spec.source.path' $eachfile)
                               export HELM_VALUE_FILE=$(find ../$APP_PATH -name "*_live.yaml" | cut -d "/" -f 4)
                               echo $HELM_VALUE_FILE
                               sed -i "s/___HELM_VALUE_FILE___/$HELM_VALUE_FILE/g" $eachfile
