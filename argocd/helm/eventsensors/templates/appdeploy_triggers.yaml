@@ -67,8 +67,8 @@ spec:
                       - name: pr-number
                       - name: dr_signal
                     artifacts:
-                      - name: script
-                        path: /usr/local/bin/deploy-scripts/deploy.sh
+                      - name: init-script
+                        path: /usr/local/bin/deploy-scripts/init.sh
                         mode: 755
                         raw:
                           data: |
@@ -85,6 +85,33 @@ spec:
                             chmod +x /usr/local/bin/argocd
                             curl -sSL -o /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
                             chmod +x /usr/local/bin/yq
+                      - name: deploy-script
+                        path: /usr/local/bin/deploy-scripts/deploy.sh
+                        mode: 755
+                        raw:
+                          data: |
+                            #!/bin/bash
+                            set -o xtrace
+                            
+                            #run init
+                            source /usr/local/bin/deploy-scripts/init.sh
+
+                            echo $dr_signal
+                            if [ $dr_signal = "true" ] 
+                            then
+                              echo "Running DR mode"
+                            else
+                              /usr/local/bin/deploy-scripts/deploy_live.sh
+                            fi
+                            
+                      - name: deploy-script-live
+                        path: /usr/local/bin/deploy-scripts/deploy_live.sh
+                        mode: 755
+                        raw:
+                          data: |
+                            #!/bin/bash
+                            set -o xtrace
+
                             export AUTH_TOKEN=___AUTH_TOKEN___
                             export SERVER=argo-cd-argocd-server.argocd.svc.cluster.local
                             export DEPLOY_API_ENDPOINT=___DEPLOY_API_ENDPOINT___
@@ -157,3 +184,8 @@ spec:
                 dependencyName: github-dep 
                 dataKey: body.number
               dest: spec.arguments.parameters.3.value
+            - src:
+                dependencyName: webhook-dep 
+                dataKey: body.unknown
+                value: true
+              dest: spec.arguments.parameters.4.value
