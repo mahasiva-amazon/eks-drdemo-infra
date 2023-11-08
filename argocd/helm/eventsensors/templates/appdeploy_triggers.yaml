@@ -100,9 +100,39 @@ spec:
                             if [ "${dr_signal}" = "Update" ] 
                             then
                               echo "Running DR mode"
+                              /usr/local/bin/deploy-scripts/deploy_dr.sh
                             else
                               /usr/local/bin/deploy-scripts/deploy_live.sh
                             fi
+                      - name: deploy-script-dr
+                        path: /usr/local/bin/deploy-scripts/deploy_dr.sh
+                        mode: 755
+                        raw:
+                          data: |
+                            #!/bin/bash
+                            set -o xtrace
+                            export AUTH_TOKEN=___AUTH_TOKEN___
+                            export SERVER=argo-cd-argocd-server.argocd.svc.cluster.local
+                            export DEPLOY_API_ENDPOINT=___DEPLOY_API_ENDPOINT___
+                            echo "http://${DEPLOY_API_ENDPOINT}/deployAPIs"
+                            export IS_DRENV=$(curl "http://${DEPLOY_API_ENDPOINT}/deployAPIs" -H 'Content-Type: application/json' -d '{"clusterName": "drworkshop3","apiType": "isDREnv"}')
+                            echo "Server Url -  $SERVER"
+                            echo "Auth Token - $AUTH_TOKEN"
+                            argocd app list --server $SERVER --auth-token $AUTH_TOKEN --insecure
+                            APPS=$(argocd app list  --server $SERVER --auth-token $AUTH_TOKEN --insecure -o json)
+                            for eachfile in $APPS
+                            do
+                              if [ "$IS_DRENV" = '"true"' ]
+                              then
+                                export HELM_VALUE_FILE=$(find ../$APP_PATH -name "*_live.yaml" | cut -d "/" -f 4)
+                              else
+                                export HELM_VALUE_FILE=$(find ../$APP_PATH -name "*_dr.yaml" | cut -d "/" -f 4)
+                              fi
+                              echo $HELM_VALUE_FILE
+                              echo "App to be patched" $eachfile
+                              argocd app set $eachfile --values ./$HELM_VALUE_FILE
+                              argocd app sync $eachfile --server $SERVER --auth-token $AUTH_TOKEN --insecure
+                            done  
                       - name: deploy-script-live
                         path: /usr/local/bin/deploy-scripts/deploy_live.sh
                         mode: 755
@@ -136,7 +166,7 @@ spec:
                               else
                                export HELM_VALUE_FILE=$(find ../$APP_PATH -name "*_live.yaml" | cut -d "/" -f 4)
                               fi
-                                echo $HELM_VALUE_FILE
+                              echo $HELM_VALUE_FILE
                               sed -i "s/___HELM_VALUE_FILE___/$HELM_VALUE_FILE/g" $eachfile
                               argocd app create -f $eachfile  --server $SERVER --auth-token $AUTH_TOKEN --insecure
                             done
