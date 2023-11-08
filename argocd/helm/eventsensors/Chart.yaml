@@ -1,4 +1,4 @@
 apiVersion: v2
 name: eventsensors
 description: A Helm chart for event sensors
-version: 0.3.11
+version: 0.3.12

@@ -100,9 +100,8 @@ spec:
                             for eachfile in $APP_FILES
                             do 
                               echo $eachfile
-                              ls -ltr
-                              find . -name "*_live.yaml"
-                              export HELM_VALUE_FILE=$(find . -name "*_live.yaml" | cut -d "/" -f 3)
+                              export APP_PATH=$(yq '.spec.source.path' app_1.yaml)
+                              export HELM_VALUE_FILE=$(find ../$APP_PATH -name "*_live.yaml" | cut -d "/" -f 4)
                               echo $HELM_VALUE_FILE
                               sed -i "s/___HELM_VALUE_FILE___/$HELM_VALUE_FILE/g" $eachfile
                               argocd app create -f $eachfile  --server $SERVER --auth-token $AUTH_TOKEN --insecure
