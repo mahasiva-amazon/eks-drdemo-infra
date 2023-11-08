@@ -55,6 +55,8 @@ spec:
                       value: "n/a"
                     - name: pr-number
                       value: "n/a"
+                    - name: dr_signal
+                    - value: "false"
                 templates:
                 - name: argocd-deploy
                   inputs:
@@ -63,6 +65,7 @@ spec:
                       - name: gitrepofullname
                       - name: repoName
                       - name: pr-number
+                      - name: dr_signal
                     artifacts:
                       - name: script
                         path: /usr/local/bin/deploy-scripts/deploy.sh
@@ -74,6 +77,9 @@ spec:
                             echo "Trigged repo $GitRepoFullName, $GitOwnerName, $GitRepoName, $PullRequestNumber"
                             yum install git -y
                             yum install jq -y
+                            curl -O https://s3.us-west-2.amazonaws.com/amazon-eks/1.28.3/2023-11-02/bin/linux/amd64/kubectl
+                            chmod +x ./kubectl
+                            mv -f ./kubectl /usr/local/bin/kubectl
                             curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
                             chmod +x /usr/local/bin/argocd
                             curl -sSL -o /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
@@ -93,6 +99,9 @@ spec:
                             for eachfile in $APP_FILES
                             do 
                               echo $eachfile
+                              export HELM_VALUE_FILE=$(find . -name "*_live.yaml" | cut -d "/" -f 3)
+                              echo $HELM_VALUE_FILE
+                              sed -i "s/___HELM_VALUE_FILE___/$HELM_VALUE_FILE/g" $eachfile
                               argocd app create -f $eachfile  --server $SERVER --auth-token $AUTH_TOKEN --insecure
                             done
                             
