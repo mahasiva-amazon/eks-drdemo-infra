@@ -103,7 +103,7 @@ spec:
                             else
                               /usr/local/bin/deploy-scripts/deploy_live.sh
                             fi
-                            
+
                       - name: deploy-script-live
                         path: /usr/local/bin/deploy-scripts/deploy_live.sh
                         mode: 755
@@ -187,5 +187,5 @@ spec:
             - src:
                 dependencyName: webhook-dep 
                 dataKey: body.unknown
-                value: true
+                value: "true"
               dest: spec.arguments.parameters.4.value
