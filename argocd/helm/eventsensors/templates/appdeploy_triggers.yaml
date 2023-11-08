@@ -119,7 +119,7 @@ spec:
                             echo "Server Url -  $SERVER"
                             echo "Auth Token - $AUTH_TOKEN"
                             argocd app list --server $SERVER --auth-token $AUTH_TOKEN --insecure
-                            APPS=$(argocd app list  --server $SERVER --auth-token $AUTH_TOKEN --insecure -o json)
+                            APPS=$(argocd app list --server $SERVER --auth-token $AUTH_TOKEN --insecure -o json | jq -r '.[].metadata.name')
                             for eachfile in $APPS
                             do
                               echo "App to be patched" $eachfile
