@@ -97,7 +97,7 @@ spec:
                             source /usr/local/bin/deploy-scripts/init.sh
 
                             echo "$dr_signal"
-                            if [ "${dr_signal}" = "true" ] 
+                            if [ "${dr_signal}" = "Update" ] 
                             then
                               echo "Running DR mode"
                             else
@@ -187,5 +187,6 @@ spec:
               dest: spec.arguments.parameters.3.value
             - src:
                 dependencyName: webhook-dep 
-                dataKey: body
+                dataKey: body.operation
+                value: "n/a"
               dest: spec.arguments.parameters.4.value
