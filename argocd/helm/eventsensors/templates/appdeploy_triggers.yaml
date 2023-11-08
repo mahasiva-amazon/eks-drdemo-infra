@@ -75,6 +75,7 @@ spec:
                             #!/bin/bash
                             set -o xtrace
                             echo "Trigged repo $GitRepoFullName, $GitOwnerName, $GitRepoName, $PullRequestNumber"
+                            yum install findutils -y
                             yum install git -y
                             yum install jq -y
                             curl -O https://s3.us-west-2.amazonaws.com/amazon-eks/1.28.3/2023-11-02/bin/linux/amd64/kubectl
