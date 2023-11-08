@@ -187,6 +187,5 @@ spec:
               dest: spec.arguments.parameters.3.value
             - src:
                 dependencyName: webhook-dep 
-                dataKey: body.unknown
-                value: "true"
+                dataKey: body
               dest: spec.arguments.parameters.4.value
