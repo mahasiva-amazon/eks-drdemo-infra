@@ -100,6 +100,8 @@ spec:
                             for eachfile in $APP_FILES
                             do 
                               echo $eachfile
+                              ls -ltr
+                              find . -name "*_live.yaml"
                               export HELM_VALUE_FILE=$(find . -name "*_live.yaml" | cut -d "/" -f 3)
                               echo $HELM_VALUE_FILE
                               sed -i "s/___HELM_VALUE_FILE___/$HELM_VALUE_FILE/g" $eachfile
