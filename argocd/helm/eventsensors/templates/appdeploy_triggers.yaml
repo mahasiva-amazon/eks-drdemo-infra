@@ -7,9 +7,12 @@ spec:
   template:
     serviceAccountName: operate-workflow-sa
   dependencies:
-    - name: webhook-dep
-      eventSourceName: webhook
-      eventName: ssm_parameterstore_notifications
+    - name: webhook-dep-ssmparam
+      eventSourceName: webhook-ssm-paramnotf
+      eventName: ssm-parameterstore-notifications
+    - name: webhook-dep-ssmopsitems
+      eventSourceName: webhook-ssm-opsitemsnotf
+      eventName: ssm-opsitems-notifications
     - name: github-dep
       eventSourceName: github
       eventName: app-deployments
@@ -33,7 +36,7 @@ spec:
               - "true"
   triggers:
     - template:
-        conditions: "webhook-dep || github-dep"
+        conditions: "webhook-dep-ssmparam || github-dep"
         name: webhook-workflow-trigger
         k8s:
           operation: create
@@ -216,7 +219,7 @@ spec:
                 dataKey: body.number
               dest: spec.arguments.parameters.3.value
             - src:
-                dependencyName: webhook-dep 
+                dependencyName: webhook-dep-ssmparam 
                 dataKey: body.operation
                 value: "n/a"
               dest: spec.arguments.parameters.4.value
