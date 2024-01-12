@@ -68,6 +68,10 @@ resource "helm_release" "argoworkflow-eventsources" {
     name = "events.github_tg_arn"
     value = "${data.aws_lb_target_group.argoworkflow_webhooks_frontend_tg_github.arn}"
   }
+  set {
+    name = "events.sns_tg_opsitem_arn"
+    value = "${data.aws_lb_target_group.argoworkflow_webhooks_frontend_tg_opsitems.arn}"
+  }
 }
 
 resource "helm_release" "argoworkflow-eventsensors" {
