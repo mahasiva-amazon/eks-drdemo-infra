@@ -33,6 +33,10 @@ data "aws_lb_target_group" "argoworkflow_webhooks_frontend_tg_github" {
   name = join("-", [var.eks_cluster_name,"agwf-gh"])
 }
 
+data "aws_lb_target_group" "argoworkflow_webhooks_frontend_tg_opsitems" {
+  name = join("-", [var.eks_cluster_name,"agwf-opsitems"])
+}
+
 data "aws_eks_cluster" "this" {
   name = var.eks_cluster_name
 }
