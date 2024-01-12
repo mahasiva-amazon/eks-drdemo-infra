@@ -5,6 +5,6 @@ metadata:
   namespace: argo-events
 spec:
   serviceRef:
-    name: webhook-eventsource-svc
+    name: webhook-ssm-opsitemsnotf-eventsource-svc
     port: 14000
   targetGroupARN: {{.Values.events.sns_tg_opsitem_arn}}
