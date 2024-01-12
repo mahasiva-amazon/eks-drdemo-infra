@@ -6,11 +6,11 @@ metadata:
 spec:
   service:
     ports:
-      - name: ssm_parameterstore_notifications
+      - name: ssm-parameterstore-notifications
         port: 12000
         targetPort: 12000
   webhook:
-      ssm_parameterstore_notifications:
+      ssm-parameterstore-notifications:
         port: "12000"
         endpoint: /ssm-parameters-notifications
         method: POST
