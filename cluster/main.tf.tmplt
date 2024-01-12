@@ -444,33 +444,13 @@ data "archive_file" "sns_http_invoker" {
   output_path = "/tmp/sns_http_invoker.zip"
   source {
     content  = <<EOF
-import { SSMClient, DescribeOpsItemsCommand } from "@aws-sdk/client-ssm";
 const http = require('http');
 module.exports.handler = function (event, context, callback) {
   console.log(JSON.stringify(event))
   var postData = event["Records"][0]["Sns"]["Message"];
-  postData = JSON.parse(postData)
-  if('detail' in postData)
-     postData=postData["detail"]
-  else if('opsItemId' in postData) {
-     const client = new SSMClient(config);
-     const input = { // DescribeOpsItemsRequest
-       OpsItemFilters: [
-        {
-          Key:  "OpsItemId" 
-          Values: [
-            postData["opsItemId"],
-          ],
-          Operator: "Equal"
-        },
-      ],
-     };
-     const command = new DescribeOpsItemsCommand(input);
-     const response = await client.send(command);
-     postData = response;
-  }
+  postData = JSON.parse(postData)["detail"]
   postData = JSON.stringify(postData)
-  console.log(postData)
+  console.log([postData])
   var options = {
   hostname: process.env.HTTP_ENDPOINT,
   port: 80,
