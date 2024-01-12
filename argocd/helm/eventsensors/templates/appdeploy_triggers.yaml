@@ -160,7 +160,7 @@ spec:
                               export APP_NAME=$(yq '.metadata.name' $eachfile)
                               echo $APPS | grep $APP_NAME
                               RET=$?
-                              if [ "$IS_DRENV" = '"true"' ]
+                              if [ "$IS_DRENV" = "true" ]
                               then
                                 export HELM_VALUE_FILE=$(find ../$APP_PATH -name "*_dr.yaml" | cut -d "/" -f 4)
                               else
