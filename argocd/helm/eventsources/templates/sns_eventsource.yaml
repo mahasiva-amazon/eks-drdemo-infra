@@ -4,12 +4,6 @@ metadata:
   name: webhook
   namespace: argo-events
 spec:
-  service:
-    ports:
-      - port: 12000
-        targetPort: 12000
-      - port: 14000
-        targetPort: 14000
   webhook:
       ssm_opsitems_notifications:
         port: "14000"
