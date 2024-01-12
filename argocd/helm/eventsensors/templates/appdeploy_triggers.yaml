@@ -165,6 +165,13 @@ spec:
                               RET=$?
                               if [ "$IS_DRENV" = "true" ]
                               then
+                                curl "http://${DEPLOY_API_ENDPOINT}/deployAPIs" -H 'Content-Type: application/json' -d '{"clusterName": "drworkshop3","apiType": "approveDRDeploy"}'
+                                if [ $? -eq 0 ]
+                                then
+                                  echo "Approval Aqquired, proceeding with deploy"
+                                else 
+                                  echo "Approval failed, proceeding with deploy"
+                                fi
                                 export HELM_VALUE_FILE=$(find ../$APP_PATH -name "*_dr.yaml" | cut -d "/" -f 4)
                               else
                                 export HELM_VALUE_FILE=$(find ../$APP_PATH -name "*_live.yaml" | cut -d "/" -f 4)
