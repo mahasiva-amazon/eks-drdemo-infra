@@ -91,11 +91,9 @@ spec:
                         raw:
                           data: |
                             #!/bin/bash
-                            set -o xtrace
-                            
+                            set -o xtrace                    
                             #run init
                             source /usr/local/bin/deploy-scripts/init.sh
-
                             echo "$dr_signal"
                             if [ "${dr_signal}" = "Update" ] 
                             then
@@ -142,7 +140,8 @@ spec:
                             export SERVER=argo-cd-argocd-server.argocd.svc.cluster.local
                             export DEPLOY_API_ENDPOINT=___DEPLOY_API_ENDPOINT___
                             echo "http://${DEPLOY_API_ENDPOINT}/deployAPIs"
-                            export IS_DRENV=$(curl "http://${DEPLOY_API_ENDPOINT}/deployAPIs" -H 'Content-Type: application/json' -d '{"clusterName": "drworkshop3","apiType": "isDREnv"}')
+                            export DR_CONFIG=$(curl "http://${DEPLOY_API_ENDPOINT}/deployAPIs" -H 'Content-Type: application/json' -d '{"clusterName": "drworkshop3","apiType": "isDREnv"}')
+                            export IS_DRENV=$(echo $DR_CONFIG | jq -r '.isDREnv')
                             echo "Server Url -  $SERVER"
                             echo "Auth Token - $AUTH_TOKEN"
                             argocd app list --server $SERVER --auth-token $AUTH_TOKEN --insecure
@@ -151,7 +150,8 @@ spec:
                             git clone $REPO_URL
                             ls -l $GitRepoName
                             cd $GitRepoName/apps
-                            
+                            UNSYNCED_APPS=$(argocd app list  --server $SERVER --auth-token $AUTH_TOKEN --insecure -o json  | jq -r '.[] | select(.status.sync.status == "OutOfSync") | .metadata.name')
+                            echo "Existing Apps" $UNSYNCED_APPS
                             APP_FILES=$(ls ./*.yaml)
                             for eachfile in $APP_FILES
                             do 
@@ -169,7 +169,7 @@ spec:
                             done
                             
                             sleep 30
-
+                            
                             UNSYNCED_APPS=$(argocd app list  --server $SERVER --auth-token $AUTH_TOKEN --insecure -o json  | jq -r '.[] | select(.status.sync.status == "OutOfSync") | .metadata.name')
                             for eachfile in $UNSYNCED_APPS
                             do
