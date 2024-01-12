@@ -11,7 +11,7 @@ spec:
       - port: 14000
         targetPort: 14000
   webhook:
-      ssm_parameterstore_notifications:
+      ssm_opsitems_notifications:
         port: "14000"
         endpoint: /opsitems
         method: POST
