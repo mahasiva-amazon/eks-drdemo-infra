@@ -1,10 +1,10 @@
 apiVersion: elbv2.k8s.aws/v1beta1
 kind: TargetGroupBinding
 metadata:
-  name: argoworkflow-sns-eventsource-lbtargets
+  name: argoworkflow-sns-eventsource-lbtargets-opsitems
   namespace: argo-events
 spec:
   serviceRef:
     name: webhook-eventsource-svc
-    port: 12000
-  targetGroupARN: {{.Values.events.sns_tg_arn}}
+    port: 14000
+  targetGroupARN: {{.Values.events.sns_tg_opsitem_arn}}
