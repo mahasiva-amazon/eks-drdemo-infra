@@ -160,20 +160,15 @@ spec:
                               export APP_NAME=$(yq '.metadata.name' $eachfile)
                               echo $APPS | grep $APP_NAME
                               RET=$?
-                              if [ $RET -ne 0 ]
+                              if [ "$IS_DRENV" = '"true"']
                               then
-                                if [ "$IS_DRENV" = '"true"']
-                                then
-                                  export HELM_VALUE_FILE=$(find ../$APP_PATH -name "*_dr.yaml" | cut -d "/" -f 4)
-                                else
-                                  export HELM_VALUE_FILE=$(find ../$APP_PATH -name "*_live.yaml" | cut -d "/" -f 4)
-                                fi
-                                echo $HELM_VALUE_FILE
-                                sed -i "s/___HELM_VALUE_FILE___/$HELM_VALUE_FILE/g" $eachfile
-                                argocd app create -f $eachfile  --server $SERVER --auth-token $AUTH_TOKEN --insecure
+                                export HELM_VALUE_FILE=$(find ../$APP_PATH -name "*_dr.yaml" | cut -d "/" -f 4)
                               else
-                                echo $APP_NAME is already available. Hence not created
+                                export HELM_VALUE_FILE=$(find ../$APP_PATH -name "*_live.yaml" | cut -d "/" -f 4)
                               fi
+                              echo $HELM_VALUE_FILE
+                              sed -i "s/___HELM_VALUE_FILE___/$HELM_VALUE_FILE/g" $eachfile
+                              argocd app create -f $eachfile  --server $SERVER --auth-token $AUTH_TOKEN --insecure
                             done
                             
                             sleep 30
