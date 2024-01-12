@@ -351,7 +351,7 @@ resource "aws_lb_listener_rule" "github" {
 
 resource "aws_lb_listener_rule" "opsitems" {
   listener_arn = aws_lb_listener.argoworkflow_webhooks_frontend_listener.arn
-  priority     = 20
+  priority     = 30
 
   action {
     type             = "forward"
