@@ -1,4 +1,4 @@
 apiVersion: v2
 name: eventsources
 description: A Helm chart for event sources
-version: 0.3.7
+version: 0.3.8
