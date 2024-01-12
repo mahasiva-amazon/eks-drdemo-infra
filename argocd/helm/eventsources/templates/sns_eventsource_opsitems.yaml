@@ -6,11 +6,11 @@ metadata:
 spec:
   service:
     ports:
-      - name: ssm_opsitems_notifications
+      - name: ssm-opsitems-notifications
         port: 14000
         targetPort: 14000
   webhook:
-      ssm_opsitems_notifications:
+      ssm-opsitems-notifications:
         port: "14000"
         endpoint: /opsitems
         method: POST
