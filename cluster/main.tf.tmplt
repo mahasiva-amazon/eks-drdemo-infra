@@ -295,6 +295,18 @@ resource "aws_lb_target_group" "argoworkflow_webhooks_frontend_tg_github" {
   }
 }
 
+resource "aws_lb_target_group" "argoworkflow_webhooks_frontend_tg_opsitems" {
+  name     = join("-", [var.cluster_data.name,"agwf-gh"])
+  port     = 14000
+  protocol = "HTTP"
+  target_type = "ip"
+  vpc_id   = data.aws_vpcs.cluster_vpc.ids[0]
+  health_check {
+    path = "/health"
+    matcher = "200-299"
+  }
+}
+
 resource "aws_lb_listener" "argoworkflow_webhooks_frontend_listener" {
   load_balancer_arn = aws_lb.argoworkflow_webhooks_frontend.arn
   port = "80"
@@ -333,6 +345,22 @@ resource "aws_lb_listener_rule" "github" {
   condition {
     path_pattern {
       values = ["/push"]
+    }
+  }
+}
+
+resource "aws_lb_listener_rule" "github" {
+  listener_arn = aws_lb_listener.argoworkflow_webhooks_frontend_listener.arn
+  priority     = 20
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.argoworkflow_webhooks_frontend_tg_opsitems.arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/opsitems"]
     }
   }
 }
