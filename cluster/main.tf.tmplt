@@ -454,7 +454,7 @@ module.exports.handler = function (event, context, callback) {
   var options = {
   hostname: process.env.HTTP_ENDPOINT,
   port: 80,
-  path: '/ssm-parameters-notifications',
+  path: process.env.HTTP_ENDPOINT_PATH,
   method: 'POST',
   headers: {
        'Content-Type': 'application/json',
@@ -492,6 +492,26 @@ resource "aws_lambda_function" "argocd_workflow_sns_subscriber" {
   environment {
     variables = {
       HTTP_ENDPOINT = "${aws_lb.argoworkflow_webhooks_frontend.dns_name}"
+      HTTP_ENDPOINT_PATH = "/ssm-parameters-notifications"
+    }
+  }
+}
+
+resource "aws_lambda_function" "argocd_workflow_sns_subscriber_opsitems" {
+  function_name    = join("_", [var.cluster_data.name,"argo_wflw_sns_handler_opsitems"])
+  filename         = "${data.archive_file.sns_http_invoker.output_path}"
+  source_code_hash = "${data.archive_file.sns_http_invoker.output_base64sha256}"
+  runtime = "nodejs18.x"
+  handler = "index.handler"
+  role = aws_iam_role.lambdarole.arn
+  vpc_config {
+    security_group_ids = [aws_security_group.lamba_sg.id]
+    subnet_ids = local.private_subnet_ids
+  }
+  environment {
+    variables = {
+      HTTP_ENDPOINT = "${aws_lb.argoworkflow_webhooks_frontend.dns_name}"
+      HTTP_ENDPOINT_PATH = "/opsitems"
     }
   }
 }
@@ -504,6 +524,10 @@ resource "aws_ssm_parameter" "dr_switch_config" {
 
 resource "aws_sns_topic" "ssm-parameter-trigger" {
   name = join("-", [var.cluster_data.name,"ssm-trig"])
+}
+
+resource "aws_sns_topic" "ssm-opsitems-trigger" {
+  name = join("-", [var.cluster_data.name,"ssm-opsitems-trig"])
 }
 
 resource "aws_lambda_permission" "allow_sns_trigger" {
@@ -520,12 +544,31 @@ resource "aws_lambda_permission" "allow_sns_trigger" {
   }
 }
 
+resource "aws_lambda_permission" "allow_sns_trigger_opsitems" {
+  statement_id  = "AllowExecutionFromSNSOpsItems"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.argocd_workflow_sns_subscriber_opsitems.function_name
+  principal     = "sns.amazonaws.com"
+  source_arn    = aws_sns_topic.ssm-opsitems-trigger.arn
+
+  lifecycle {
+    replace_triggered_by = [
+      aws_lambda_function.argocd_workflow_sns_subscriber_opsitems
+    ]
+  }
+}
+
 resource "aws_sns_topic_subscription" "lambda_subscriber" {
   topic_arn = aws_sns_topic.ssm-parameter-trigger.arn
   protocol  = "lambda"
   endpoint  = aws_lambda_function.argocd_workflow_sns_subscriber.arn
 }
 
+resource "aws_sns_topic_subscription" "lambda_subscriber_opsitems" {
+  topic_arn = aws_sns_topic.ssm-opsitems-trigger.arn
+  protocol  = "lambda"
+  endpoint  = aws_lambda_function.argocd_workflow_sns_subscriber_opsitems.arn
+}
 
 resource "aws_sns_topic_policy" "default" {
   arn = aws_sns_topic.ssm-parameter-trigger.arn
