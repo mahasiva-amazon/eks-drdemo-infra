@@ -1,0 +1,16 @@
+apiVersion: argoproj.io/v1alpha1
+kind: EventSource
+metadata:
+  name: webhook-ssm-opsitemsnotf
+  namespace: argo-events
+spec:
+  service:
+    ports:
+      - name: ssm_opsitems_notifications
+        port: 14000
+        targetPort: 14000
+  webhook:
+      ssm_opsitems_notifications:
+        port: "14000"
+        endpoint: /opsitems
+        method: POST
